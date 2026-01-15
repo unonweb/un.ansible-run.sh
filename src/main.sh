@@ -24,8 +24,8 @@ if [[ -r ${PATH_CONFIG} ]]; then
 else
 	echo "<4>WARN: No config file found at ${PATH_CONFIG}. Using defaults ..."
 	# DEFAULTS
-	VAULT_ALL_CREDS_LOOKUP_PATH="~/.credentials/ansible/vault-all-lookup.sh"
-	VAULT_HOST_CREDS_LOOKUP_PATH="~/.credentials/ansible/vault-host-lookup.sh"
+	VAULT_ALL_CREDS_LOOKUP_PATH="/home/${USER}/.credentials/ansible/vault-all-lookup.sh"
+	VAULT_HOST_CREDS_LOOKUP_PATH="/home/${USER}/.credentials/ansible/vault-host-lookup.sh"
 	ANSIBLE_REPO_PATH="/media/nas/ansible_repository"
 	#PATH_INVENTORY="${ANSIBLE_REPO_PATH}/inventory/inventory.yml"
 	#PATH_CONFIG="${ANSIBLE_REPO_PATH}/ansible.cfg"
@@ -56,8 +56,12 @@ function main() { # ${host} ${tags}
 	fi
 
 	# how shall ansible prompt for vault with id corresponding to host
-	if [[ "${host}" = "$(hostname)" && -f "${VAULT_HOST_CREDS_LOOKUP_PATH}" ]]; then
-		vault_host_creds="${VAULT_HOST_CREDS_LOOKUP_PATH}"
+	if [[ "${host}" = "$(hostname)" ]]; then
+		if [[ -x "${VAULT_HOST_CREDS_LOOKUP_PATH}" ]]; then
+			vault_host_creds="${VAULT_HOST_CREDS_LOOKUP_PATH}"
+		else
+			echo "Place a lookup script at ${VAULT_HOST_CREDS_LOOKUP_PATH} to avoid asking for your own vault key everytime."
+		fi
 	else
 		vault_host_creds="prompt"
 	fi
@@ -70,7 +74,8 @@ function main() { # ${host} ${tags}
 	fi
 
 	# feedback
-	echo -e "${CYAN}Running ansible on host "${host}" with tags "${tags}"${CLEAR} ..."
+	echo
+	echo -e "${CYAN}Running ansible on host "${host}" with tags: "${tags}"${CLEAR} ..."
 	local CMD="ansible-playbook \
 	--vault-id=all@${vault_all_creds} \
 	--vault-id=${host}@${vault_host_creds} \
@@ -78,7 +83,6 @@ function main() { # ${host} ${tags}
 	--tags "${tags}" \
 	${ANSIBLE_REPO_PATH}/playbooks/${host}.yml"
 
-	echo "Running ..."
 	echo ${CMD}
 	
 	# run
