@@ -19,6 +19,29 @@ UNDERLINE="${ESC}[4m"
 
 # CONFIG & DEFAULTS
 PATH_CONFIG="${SCRIPT_PARENT}/config.cfg"
+HOSTS=(
+	"fk-mobil01 [claudi]"
+	"fk-mobil02 [sarah]"
+	"fk-mobil03 [dirk]"
+	"fk-mobil04 [albi]"
+	"fk-mobil08 [laura]"
+	"fk-mobil09 [alex]"
+	"fk-mobil10 [matzel]"
+	"fk-mobil11 [ralf]"
+	"fk-mobil12 [bufdi]"
+	"fk-mobil13 [biggi]"
+	"fk-mobil14 [ole]"
+	"fk-mobil15 [lola]"
+	"fk-mobil16 [karin]"
+	"fk-mobil18 [freddi]"
+	"fk-mobil19 [janosch]"
+	"fk-mobil20 [julia]"
+	"fk-mobil21 [martin]"
+	"fk-mobil22 [harald]"
+	"fk-mobil25 [udo]"
+	"fk-mobil26 [simon]"
+	"fk-mobil27 [tony]"
+)
 
 if [[ -r ${PATH_CONFIG} ]]; then
 	source "${PATH_CONFIG}"
@@ -48,12 +71,30 @@ function main() { # ${host} ${tags}
 
 	if [[ -z "${host}" ]]; then
 		echo -e "${CYAN}Enter host name${CLEAR}"
+		echo -e "${GREY}Leave empty for suggestions${CLEAR}"
 		read -p ">> " host
+		if [[ -z "${host}" ]]; then
+			select item in "${HOSTS[@]}"; do
+				if [ -n "${item}" ]; then
+					# remove " [user]" from the host string
+					host="${item%% \[*}" # remove " [*" from the end
+					echo "-> ${host}"
+					break
+				else
+					echo "Invalid selection. Try again."
+				fi
+			done
+		fi
 	fi
 
 	if [[ -z "${tags}" ]]; then	
-		echo -e "${CYAN}Enter tags${CLEAR} (separator: comma)"
+		echo -e "${CYAN}Enter tags${CLEAR}"
+		echo -e "${GREY}Separator: comma${CLEAR}"
+		echo -e "${GREY}Leave empty for all tags${CLEAR}"
 		read -p ">> " tags
+		if [[ -z "${tags}" ]]; then
+			tags="all"
+		fi
 	fi
 
 	# how shall ansible prompt for vault with id corresponding to host
