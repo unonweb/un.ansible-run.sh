@@ -84,9 +84,10 @@ function main() { # ${host} ${tags}
 	${ANSIBLE_REPO_PATH}/playbooks/${host}.yml"
 
 	# feedback
-	echo
 	echo -e "${CYAN}Running ansible on host "${host}" with tags: "${tags}"${CLEAR} ..."
-	echo ${GREY}${CMD}${CLEAR}
+	echo -en "${GREY}"
+	echo ${CMD}
+	echo -en "${CLEAR}"
 	
 	# run cmd
 	ANSIBLE_HASH_BEHAVIOUR=merge ${CMD}
