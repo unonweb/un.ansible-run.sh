@@ -87,7 +87,8 @@ function main() { # ${host} ${tags}
 		fi
 	fi
 
-	if [[ -z "${tags}" ]]; then	
+	if [[ -z "${tags}" ]]; then
+		echo
 		echo -e "${CYAN}Enter tags${CLEAR}"
 		echo -e "${GREY}Separator: comma${CLEAR}"
 		echo -e "${GREY}Leave empty for all tags${CLEAR}"
@@ -125,6 +126,7 @@ function main() { # ${host} ${tags}
 	${ANSIBLE_REPO_PATH}/playbooks/${host}.yml"
 
 	# feedback
+	echo
 	echo -e "${CYAN}Running ansible on host "${host}" with tags: "${tags}"${CLEAR} ..."
 	echo -en "${GREY}"
 	echo ${CMD}
