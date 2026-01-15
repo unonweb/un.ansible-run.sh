@@ -61,6 +61,7 @@ function main() { # ${host} ${tags}
 			vault_host_creds="${VAULT_HOST_CREDS_LOOKUP_PATH}"
 		else
 			echo "Place a lookup script at ${VAULT_HOST_CREDS_LOOKUP_PATH} to avoid asking for your own vault key everytime."
+			vault_host_creds="prompt"
 		fi
 	else
 		vault_host_creds="prompt"
