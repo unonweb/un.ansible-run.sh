@@ -13,6 +13,7 @@ RED="${ESC}[31m"
 GREEN="${ESC}[32m"
 BLUE="${ESC}[34m"
 MAGENTA="\e[35m"
+GREY="${ESC}[37m"
 CYAN="\e[36m"
 UNDERLINE="${ESC}[4m"
 
@@ -74,9 +75,7 @@ function main() { # ${host} ${tags}
 		vault_all_creds="prompt"
 	fi
 
-	# feedback
-	echo
-	echo -e "${CYAN}Running ansible on host "${host}" with tags: "${tags}"${CLEAR} ..."
+	# build cmd
 	local CMD="ansible-playbook \
 	--vault-id=all@${vault_all_creds} \
 	--vault-id=${host}@${vault_host_creds} \
@@ -84,9 +83,12 @@ function main() { # ${host} ${tags}
 	--tags "${tags}" \
 	${ANSIBLE_REPO_PATH}/playbooks/${host}.yml"
 
-	echo ${CMD}
+	# feedback
+	echo
+	echo -e "${CYAN}Running ansible on host "${host}" with tags: "${tags}"${CLEAR} ..."
+	echo ${GREY}${CMD}${CLEAR}
 	
-	# run
+	# run cmd
 	ANSIBLE_HASH_BEHAVIOUR=merge ${CMD}
 
 	#ANSIBLE_HASH_BEHAVIOUR=merge ansible-playbook \
