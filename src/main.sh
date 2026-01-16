@@ -19,19 +19,13 @@ UNDERLINE="${ESC}[4m"
 
 # CONFIG & DEFAULTS
 PATH_CONFIG="${SCRIPT_PARENT}/config.cfg"
-
+PATH_DEFAULTS="${SCRIPT_DIR}/defaults.cfg"
 
 if [[ -r ${PATH_CONFIG} ]]; then
 	source "${PATH_CONFIG}"
 else
 	echo "<4>WARN: No config file found at ${PATH_CONFIG}. Using defaults ..."
-	# DEFAULTS
-	VAULT_ALL_CREDS_LOOKUP_PATH="/home/${USER}/.credentials/ansible/vault-all-lookup.sh"
-	VAULT_HOST_CREDS_LOOKUP_PATH="/home/${USER}/.credentials/ansible/vault-host-lookup.sh"
-	ANSIBLE_REPO_PATH="/media/nas/ansible_repository"
-	HOSTS=()
-	#PATH_INVENTORY="${ANSIBLE_REPO_PATH}/inventory/inventory.yml"
-	#PATH_CONFIG="${ANSIBLE_REPO_PATH}/ansible.cfg"
+	source "${PATH_CONFIG}"
 fi
 
 function main() { # ${host} ${tags}
@@ -43,8 +37,8 @@ function main() { # ${host} ${tags}
 	local vault_all_creds
 	
 	if [[ ! -d "${ANSIBLE_REPO_PATH}" ]]; then
-		echo "Path not found: ${ANSIBLE_REPO_PATH}"
-		echo "Save path to ansible repo in: ${PATH_CONFIG}. Exiting ..."
+		echo "ANSIBLE_REPO_PATH not found: ${ANSIBLE_REPO_PATH}"
+		echo "Adjust config file at: ${PATH_CONFIG}. Exiting ..."
 		exit 1
 	fi
 
@@ -68,14 +62,54 @@ function main() { # ${host} ${tags}
 		fi
 	fi
 
+	# build playbook path
+	if [[ -f "${ANSIBLE_REPO_PATH}/playbooks/${host}.yml" ]]; then
+		ansible_playbook_path="${ANSIBLE_REPO_PATH}/playbooks/${host}.yml"
+	elif [[ -f "${ANSIBLE_REPO_PATH}/playbooks/hosts.${host}.yml" ]]; then
+		ansible_playbook_path="${ANSIBLE_REPO_PATH}/playbooks/hosts.${host}.yml"
+	else
+		echo "ERROR: Path to playbook not found. Tried:"
+		echo "${ANSIBLE_REPO_PATH}/playbooks/${host}.yml"
+		echo "${ANSIBLE_REPO_PATH}/playbooks/hosts.${host}.yml"
+		echo -e "${CYAN}Enter path${CLEAR}"
+		read -p ">> " ansible_playbook_path
+	fi
+
+	# build playbook path
+	if [[ -f "${ANSIBLE_REPO_PATH}/inventory/inventory.yml" ]]; then
+		ansible_inventory_path="${ANSIBLE_REPO_PATH}/inventory/inventory.yml"
+	else
+		echo "ERROR: Path to inventory not found. Tried:"
+		echo "${ANSIBLE_REPO_PATH}/inventory/inventory.yml"
+		exit 1
+	fi
+
 	if [[ -z "${tags}" ]]; then
 		echo
 		echo -e "${CYAN}Enter tags${CLEAR}"
 		echo -e "${GREY}Separator: comma${CLEAR}"
-		echo -e "${GREY}Leave empty for all tags${CLEAR}"
+		echo -e "${GREY}Leave empty for suggestions${CLEAR}"
 		read -p ">> " tags
 		if [[ -z "${tags}" ]]; then
-			tags="all"
+			# Extracting TASK TAGS line
+			local output_list_tags=$(ansible-playbook --list-tags --inventory "${ansible_inventory_path}" "${ansible_playbook_path}")
+			#task_tags_line=$(echo "${output_list_tags}" | grep "TASK TAGS:")
+			# Removing the prefix and brackets
+			task_tags_line="${output_list_tags#*TASK TAGS: }" # Remove from the beginning until TASK TAGS: 
+			task_tags_line="${task_tags_line//[\[\]]/}" # Remove brackets
+			# Converting the string into an array using IFS
+			local tags_array=()
+			IFS=', ' read -r -a tags_array <<< "${task_tags_line}"
+
+			select tag in "${tags_array[@]}"; do
+				if [ -n "${tag}" ]; then
+					echo "-> ${tag}"
+					tags="${tag}"
+					break
+				else
+					echo "Invalid selection. Try again."
+				fi
+			done			
 		fi
 	fi
 
@@ -102,9 +136,9 @@ function main() { # ${host} ${tags}
 	local CMD="ansible-playbook \
 	--vault-id=all@${vault_all_creds} \
 	--vault-id=${host}@${vault_host_creds} \
-	--inventory=${ANSIBLE_REPO_PATH}/inventory/inventory.yml \
+	--inventory=${ansible_inventory_path} \
 	--tags "${tags}" \
-	${ANSIBLE_REPO_PATH}/playbooks/${host}.yml"
+	${ansible_playbook_path}"
 
 	# feedback
 	echo
