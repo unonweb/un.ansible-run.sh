@@ -20,6 +20,8 @@ UNDERLINE="${ESC}[4m"
 # CONFIG & DEFAULTS
 PATH_CONFIG="${SCRIPT_PARENT}/config.cfg"
 PATH_DEFAULTS="${SCRIPT_DIR}/defaults.cfg"
+USE_VAULT_ALL=0
+USE_VAULT_HOST=0
 
 if [[ -r ${PATH_CONFIG} ]]; then
 	source "${PATH_CONFIG}"
@@ -118,7 +120,8 @@ function main() { # ${host} ${tags}
 		if [[ -x "${VAULT_HOST_CREDS_LOOKUP_PATH}" ]]; then
 			vault_host_creds="${VAULT_HOST_CREDS_LOOKUP_PATH}"
 		else
-			echo "Place a lookup script at ${VAULT_HOST_CREDS_LOOKUP_PATH} to avoid asking for your own vault key everytime."
+			echo
+			echo "In order to avoid asking for your own vault key everytime place a lookup script at ${VAULT_HOST_CREDS_LOOKUP_PATH} and make it executable."
 			vault_host_creds="prompt"
 		fi
 	else
@@ -133,12 +136,16 @@ function main() { # ${host} ${tags}
 	fi
 
 	# build cmd
-	local CMD="ansible-playbook \
-	--vault-id=all@${vault_all_creds} \
-	--vault-id=${host}@${vault_host_creds} \
-	--inventory=${ansible_inventory_path} \
-	--tags "${tags}" \
-	${ansible_playbook_path}"
+	local CMD="ansible-playbook"
+	CMD+=" --inventory=${ansible_inventory_path}"
+	CMD+=" --tags "${tags}""
+	if ((USE_VAULT_ALL)); then
+		CMD+=" --vault-id=all@${vault_all_creds}"
+	fi
+	if ((USE_VAULT_HOST)); then
+		CMD+=" --vault-id=${host}@${vault_host_creds}"
+	fi
+	CMD+=" ${ansible_playbook_path}"
 
 	# feedback
 	echo
