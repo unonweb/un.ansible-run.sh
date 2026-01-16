@@ -19,29 +19,7 @@ UNDERLINE="${ESC}[4m"
 
 # CONFIG & DEFAULTS
 PATH_CONFIG="${SCRIPT_PARENT}/config.cfg"
-HOSTS=(
-	"fk-mobil01 [claudi]"
-	"fk-mobil02 [sarah]"
-	"fk-mobil03 [dirk]"
-	"fk-mobil04 [albi]"
-	"fk-mobil08 [laura]"
-	"fk-mobil09 [alex]"
-	"fk-mobil10 [matzel]"
-	"fk-mobil11 [ralf]"
-	"fk-mobil12 [bufdi]"
-	"fk-mobil13 [biggi]"
-	"fk-mobil14 [ole]"
-	"fk-mobil15 [lola]"
-	"fk-mobil16 [karin]"
-	"fk-mobil18 [freddi]"
-	"fk-mobil19 [janosch]"
-	"fk-mobil20 [julia]"
-	"fk-mobil21 [martin]"
-	"fk-mobil22 [harald]"
-	"fk-mobil25 [udo]"
-	"fk-mobil26 [simon]"
-	"fk-mobil27 [tony]"
-)
+
 
 if [[ -r ${PATH_CONFIG} ]]; then
 	source "${PATH_CONFIG}"
@@ -51,6 +29,7 @@ else
 	VAULT_ALL_CREDS_LOOKUP_PATH="/home/${USER}/.credentials/ansible/vault-all-lookup.sh"
 	VAULT_HOST_CREDS_LOOKUP_PATH="/home/${USER}/.credentials/ansible/vault-host-lookup.sh"
 	ANSIBLE_REPO_PATH="/media/nas/ansible_repository"
+	HOSTS=()
 	#PATH_INVENTORY="${ANSIBLE_REPO_PATH}/inventory/inventory.yml"
 	#PATH_CONFIG="${ANSIBLE_REPO_PATH}/ansible.cfg"
 fi
@@ -71,7 +50,9 @@ function main() { # ${host} ${tags}
 
 	if [[ -z "${host}" ]]; then
 		echo -e "${CYAN}Enter host name${CLEAR}"
-		echo -e "${GREY}Leave empty for suggestions${CLEAR}"
+		if [[ ${#HOSTS[@]} -gt 0 ]]; then
+			echo -e "${GREY}Leave empty for suggestions${CLEAR}"
+		fi
 		read -p ">> " host
 		if [[ -z "${host}" ]]; then
 			select item in "${HOSTS[@]}"; do
