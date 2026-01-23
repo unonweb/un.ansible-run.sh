@@ -41,7 +41,11 @@ function main() { # ${host} ${tags}
 	local ansible_exec_path=$(which ansible-playbook)
 
 	if [[ -z "${ansible_exec_path}" ]]; then
-		echo "ansible-playbook not found"
+		echo "ansible-playbook not found in PATH"
+		echo -e "Trying ${GREY}/home/${USER}/.local/bin/ansible-playbook${CLEAR} ..."
+		if [[ -f "/home/${USER}/.local/bin/ansible-playbook" ]]; then
+			ansible_exec_path="/home/${USER}/.local/bin/ansible-playbook"
+		fi
 		exit 1
 	fi
 	
