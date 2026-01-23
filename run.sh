@@ -14,5 +14,6 @@ while true; do
 		echo "Script returned error code ${?}"
 		echo
 		read -p "Press Enter to exit ..."
+		break
 	fi
 done
