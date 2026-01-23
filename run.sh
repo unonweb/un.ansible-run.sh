@@ -2,6 +2,8 @@
 
 ESC=$(printf "\e")
 BOLD="${ESC}[1m"
+CYAN="\e[36m"
+MAGENTA="\e[35m"
 RESET="${ESC}[0m"
 SCRIPT_DIR=$(dirname -- "$(readlink -f "${BASH_SOURCE}")")
 EXEC_PATH="${SCRIPT_DIR}/src/main.sh"
@@ -12,7 +14,7 @@ while true; do
 	source ${EXEC_PATH}
 	exit_code=${?}  # Store the exit code immediately
 	if [[ ${exit_code} -ne 0 ]]; then
-		echo "Script returned error code: ${exit_code}"
+		echo -e "${MAGENTA}Script returned error code: ${exit_code}${RESET}"
 		echo
 		read -p "Press Enter to exit ..."
 		break
