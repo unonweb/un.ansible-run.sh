@@ -10,4 +10,8 @@ echo -e "Use ${BOLD}ctrl + c${RESET} to exit."
 while true; do
 	echo "---"
 	${EXEC_PATH}
+	if [[ ${?} -ne 0 ]]; then
+		echo "Script returned error code ${?}"
+		read -p "Press Enter to exit ..."
+	fi
 done
