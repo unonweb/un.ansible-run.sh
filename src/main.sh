@@ -57,6 +57,7 @@ function main() { # ${host} ${tags}
 	fi
 
 	if [[ -z "${host}" ]]; then
+		echo
 		echo -e "${CYAN}Enter host name${CLEAR}"
 		if [[ ${#HOSTS[@]} -gt 0 ]]; then
 			echo -e "${GREY}Leave empty for suggestions${CLEAR}"
