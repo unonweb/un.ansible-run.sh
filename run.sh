@@ -9,9 +9,10 @@ EXEC_PATH="${SCRIPT_DIR}/src/main.sh"
 echo -e "Use ${BOLD}ctrl + c${RESET} to exit."
 while true; do
 	echo "---"
-	${EXEC_PATH}
+	source ${EXEC_PATH}
 	if [[ ${?} -ne 0 ]]; then
 		echo "Script returned error code ${?}"
+		echo
 		read -p "Press Enter to exit ..."
 	fi
 done
