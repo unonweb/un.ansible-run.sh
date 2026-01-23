@@ -37,6 +37,13 @@ function main() { # ${host} ${tags}
 
 	local vault_host_creds
 	local vault_all_creds
+
+	local ansible_exec_path=$(which ansible-playbook)
+
+	if [[ -z "${ansible_exec_path}" ]]; then
+		echo "ansible-playbook not found"
+		exit 1
+	fi
 	
 	if [[ ! -d "${ANSIBLE_REPO_PATH}" ]]; then
 		echo "ANSIBLE_REPO_PATH not found: ${ANSIBLE_REPO_PATH}"
@@ -136,7 +143,7 @@ function main() { # ${host} ${tags}
 	fi
 
 	# build cmd
-	local CMD="ansible-playbook"
+	local CMD="${ansible_exec_path}"
 	CMD+=" --inventory=${ansible_inventory_path}"
 	CMD+=" --tags "${tags}""
 	if ((USE_VAULT_ALL)); then
