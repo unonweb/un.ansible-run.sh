@@ -46,13 +46,13 @@ function main() { # ${host} ${tags}
 		if [[ -f "/home/${USER}/.local/bin/ansible-playbook" ]]; then
 			ansible_exec_path="/home/${USER}/.local/bin/ansible-playbook"
 		fi
-		exit 1
+		return 1
 	fi
 	
 	if [[ ! -d "${ANSIBLE_REPO_PATH}" ]]; then
 		echo "ANSIBLE_REPO_PATH not found: ${ANSIBLE_REPO_PATH}"
 		echo "Adjust config file at: ${PATH_CONFIG}. Exiting ..."
-		exit 1
+		return 1
 	fi
 
 	if [[ -z "${host}" ]]; then
@@ -94,7 +94,7 @@ function main() { # ${host} ${tags}
 	else
 		echo "ERROR: Path to inventory not found. Tried:"
 		echo "${ANSIBLE_REPO_PATH}/inventory/inventory.yml"
-		exit 1
+		return 1
 	fi
 
 	if [[ -z "${tags}" ]]; then
