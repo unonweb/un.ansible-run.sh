@@ -45,8 +45,9 @@ function main() { # ${host} ${tags}
 		echo -e "Trying ${GREY}/home/${USER}/.local/bin/ansible-playbook${CLEAR} ..."
 		if [[ -f "/home/${USER}/.local/bin/ansible-playbook" ]]; then
 			ansible_exec_path="/home/${USER}/.local/bin/ansible-playbook"
+		else 
+			return 1
 		fi
-		return 1
 	fi
 	
 	if [[ ! -d "${ANSIBLE_REPO_PATH}" ]]; then
