@@ -1,9 +1,14 @@
+# REQUIRES
+# --------
+# - ANSIBLE_INVENTORY_PATH
+# - ANSIBLE_EXEC_PATH
+# - PATH_DATA_LAST_HOST
+
+# SETS
+# ----
+# - ANSIBLE_HOST
+
 function set_host {
-	# requires: 
-	# - ANSIBLE_INVENTORY_PATH
-	# - ANSIBLE_EXEC_PATH
-	# sets:
-	# - ANSIBLE_HOST
 
 	local host_query
 	local available_hosts
@@ -73,7 +78,7 @@ function set_host {
 					continue
 				else
 					ANSIBLE_HOST="${choice}"
-					echo "-> ${ANSIBLE_HOST}"
+					# echo "-> ${ANSIBLE_HOST}"
 					break
 				fi
 			done
@@ -81,6 +86,7 @@ function set_host {
 	fi
 
 	if [[ -n ${ANSIBLE_HOST} ]]; then
+		echo "${ANSIBLE_HOST}" > "${PATH_DATA_LAST_HOST}"
 		return 0
 	else
 		echo "ERROR: ANSIBLE_HOST not set!"

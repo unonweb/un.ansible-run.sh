@@ -1,30 +1,32 @@
 #!/bin/bash
 
 # BOILERPLATE
-SCRIPT_PATH="$(readlink -f "${BASH_SOURCE}")"
-SCRIPT_DIR=$(dirname -- "$(readlink -f "${BASH_SOURCE}")")
-SCRIPT_NAME=$(basename -- "$(readlink -f "${BASH_SOURCE}")")
-SCRIPT_PARENT=$(dirname "${SCRIPT_DIR}")
-ESC=$(printf "\e")
-BOLD="${ESC}[1m"
-RESET="${ESC}[0m"
-CLEAR="\e[0m"
-RED="${ESC}[31m"
-GREEN="${ESC}[32m"
-BLUE="${ESC}[34m"
-MAGENTA="\e[35m"
-GREY="${ESC}[37m"
-CYAN="\e[36m"
-UNDERLINE="${ESC}[4m"
-BLINKINK="\033[5m"
+export SCRIPT_PATH="$(readlink -f "${BASH_SOURCE}")"
+export SCRIPT_DIR=$(dirname -- "$(readlink -f "${BASH_SOURCE}")")
+export SCRIPT_NAME=$(basename -- "$(readlink -f "${BASH_SOURCE}")")
+export SCRIPT_PARENT=$(dirname "${SCRIPT_DIR}")
+export ESC=$(printf "\e")
+export BOLD="${ESC}[1m"
+export RESET="${ESC}[0m"
+export CLEAR="\e[0m"
+export RED="${ESC}[31m"
+export GREEN="${ESC}[32m"
+export BLUE="${ESC}[34m"
+export MAGENTA="\e[35m"
+export GREY="\033[38;5;248m"
+export CYAN="\e[36m"
+export UNDERLINE="${ESC}[4m"
+export BLINKING="\033[5m"
 
 # CONFIG & DEFAULTS
-PATH_CONFIG="${SCRIPT_PARENT}/config.cfg"
-PATH_DEFAULTS="${SCRIPT_DIR}/defaults.cfg"
-PATH_DATA="${SCRIPT_PARENT}/data"
-VERSION=1.4
-DEBUG=1
-LOG=0
+export PATH_CONFIG="${SCRIPT_PARENT}/config.cfg"
+export PATH_DEFAULTS="${SCRIPT_DIR}/defaults.cfg"
+export PATH_DATA="${SCRIPT_PARENT}/data"
+export PATH_DATA_LAST_HOST="${PATH_DATA}/last_host"
+export PATH_DATA_LAST_TAGS="${PATH_DATA}/last_tags"
+export VERSION=2
+export DEBUG=1
+export LOG=0
 
 if [[ -r ${PATH_CONFIG} ]]; then
 	source "${PATH_CONFIG}"
@@ -34,22 +36,26 @@ else
 fi
 
 # IMPORTS
+source ${SCRIPT_DIR}/lib/save_tag_list.sh
 source ${SCRIPT_DIR}/lib/set_tags.sh
 source ${SCRIPT_DIR}/lib/set_host.sh
-source ${SCRIPT_DIR}/lib/set_playbook.sh
+source ${SCRIPT_DIR}/lib/set_playbook_path.sh
 source ${SCRIPT_DIR}/lib/log.sh
 source ${SCRIPT_DIR}/lib/debug.sh
+source ${SCRIPT_DIR}/lib/set_inventory_path.sh
+source ${SCRIPT_DIR}/lib/add_vault.sh
+source ${SCRIPT_DIR}/lib/add_vault_flag.sh
+source ${SCRIPT_DIR}/lib/get_possible_vaults.sh
 
-function main { # ${host} ${tags}
+function main {
 
-	ANSIBLE_HOST=${1:-""}
-	ANSIBLE_TAGS=${2:-""}
+	ANSIBLE_HOST=""
+	ANSIBLE_TAGS=""
 	ANSIBLE_EXEC_PATH=$(which ansible)
 	ANSIBLE_PLAYBOOK_EXEC_PATH=$(which ansible-playbook)
 	
-	local ansible_config_path="${ANSIBLE_REPO_PATH}/ansible.cfg"
-	local vault_host_creds
-	local vault_all_creds
+	ANSIBLE_CONFIG_PATH="${ANSIBLE_REPO_PATH}/ansible.cfg"
+	VAULT_FLAGS=()
 
 	# PRINT version
 	echo -ne "${GREY}"
@@ -90,167 +96,178 @@ function main { # ${host} ${tags}
 		exit 1
 	fi
 
-	# SET inventory path
-	if [[ -f "${ANSIBLE_REPO_PATH}/inventory/inventory.yml" ]]; then
-		ANSIBLE_INVENTORY_PATH="${ANSIBLE_REPO_PATH}/inventory/inventory.yml"
+	# INIT inventory path
+	set_inventory_path
+
+	# INIT possible vaults
+	get_possible_vaults
+
+	# INIT host
+	if [[ -f "${PATH_DATA_LAST_HOST}" ]]; then
+		ANSIBLE_HOST=$(< "${PATH_DATA_LAST_HOST}")
 	else
-		echo "ERROR: Path to inventory not found. Tried:"
-		echo "${ANSIBLE_REPO_PATH}/inventory/inventory.yml"
-		exit 1
+		set_host
 	fi
 
-	# INTERACTIVE PART
+	# INIT tags
+	if [[ -f "${PATH_DATA_LAST_HOST}" ]]; then
+		ANSIBLE_TAGS=$(< "${PATH_DATA_LAST_TAGS}")
+	else
+		set_tags
+	fi
+
+	# INIT playbook path
+	set_playbook_path
+
+	# INIT vault flags
+	add_vault_flag "${ANSIBLE_HOST}"
+	for id in ${VAULT_DEFAULT_IDS}; do
+		add_vault_flag "${id}"
+	done
+
+	# Main Menu
 	while true; do
-		echo "---"
-		# SET host
-		if [[ -z "${ANSIBLE_HOST}" ]]; then
-			set_host
-		fi
 
-		# SET playbook path
-		set_playbook
-
-		# SET tags
-		if [[ -z "${ANSIBLE_TAGS}" ]]; then
-			set_tags
-		fi
-
-		# SET has_host_vault
-		local host_vars_dirs
-		local has_host_vault=0
-		
-		mapfile -t host_vars_dirs < <(find "${ANSIBLE_REPO_PATH}" -maxdepth 2 -type d -name "host_vars")
-		if [[ ${#host_vars_dirs[@]} -eq 1 ]]; then
-			local vault_host_path="${host_vars_dirs[0]}/${ANSIBLE_HOST}/vault.yml"
-			if [[ -f "${host_vars_dirs[0]}/${ANSIBLE_HOST}/vault.yml" ]]; then
-				has_host_vault=1
-			fi
-		else
-			echo "No 'host_vars' directory found at ${ANSIBLE_REPO_PATH}"
-		fi
-
-		# SET vault_host_creds
-		if ((has_host_vault)); then
-			if [[ "${ANSIBLE_HOST}" == "$(hostname)" ]]; then
-				# we'are running ansible against localhost
-				if [[ -x "${VAULT_HOST_CREDS_LOOKUP_PATH}" ]]; then
-					vault_host_creds="${VAULT_HOST_CREDS_LOOKUP_PATH}"
-				else
-					echo
-					echo "In order to avoid asking for your own vault key everytime place a lookup script at ${VAULT_HOST_CREDS_LOOKUP_PATH} and make it executable."
-					vault_host_creds="prompt"
-				fi
-			else
-				vault_host_creds="prompt"
-			fi
-		fi
-
-		# SET has_group_vault
-		local group_vars_dirs
-		local has_group_vault=0
-		mapfile -t group_vars_dirs < <(find "${ANSIBLE_REPO_PATH}" -maxdepth 2 -type d -name "group_vars")
-		if [[ ${#group_vars_dirs[@]} -eq 1 ]]; then
-			if [[ -n ${VAULT_GROUP_NAME} ]]; then
-				local vault_group_path="${group_vars_dirs[0]}/${VAULT_GROUP_NAME}/vault.yml"
-				if [[ -f "${group_vars_dirs[0]}/${VAULT_GROUP_NAME}/vault.yml" ]]; then
-					has_group_vault=1
-				fi
-			else
-				echo -e "${GREY}No group name used.${CLEAR}"
-				has_group_vault=0
-			fi
-		else
-			echo "No 'group_vars' directory found at ${ANSIBLE_REPO_PATH}"
-		fi
-
-		# SET vault_all_creds
-		if ((has_group_vault)); then
-			if [[ -f "${VAULT_GROUP_CREDS_LOOKUP_PATH}" ]]; then
-				vault_all_creds="${VAULT_GROUP_CREDS_LOOKUP_PATH}"
-			else
-				vault_all_creds="prompt"
-			fi
-		fi
+		local options=(
+			"Host"
+			"Tags"
+			"Vaults"
+			"Run Ansible"
+			"Run Ansible (verbose)"
+			"Exit"
+		)
 
 		# SET cmd
-		local CMD="${ANSIBLE_PLAYBOOK_EXEC_PATH}"
-		CMD+=" --inventory=${ANSIBLE_INVENTORY_PATH}"
-		CMD+=" --tags "${ANSIBLE_TAGS}""
-		if ((has_group_vault)); then
-			CMD+=" --vault-id=${VAULT_GROUP_NAME}@${vault_all_creds}"
-		fi
-		if ((has_host_vault)); then
-			CMD+=" --vault-id=${ANSIBLE_HOST}@${vault_host_creds}"
-		fi
-		CMD+=" ${ANSIBLE_PLAYBOOK_PATH}"
-
+		local cmd="${ANSIBLE_PLAYBOOK_EXEC_PATH}"
+		cmd+=" --inventory=${ANSIBLE_INVENTORY_PATH}"
+		cmd+=" --tags "${ANSIBLE_TAGS}""
+		cmd+="${VAULT_FLAGS[@]}"
+		cmd+=" ${ANSIBLE_PLAYBOOK_PATH}"
 		# SET env
-		if [[ -f "${ansible_config_path}" ]]; then
-			CMD="ANSIBLE_CONFIG='${ANSIBLE_REPO_PATH}/ansible.cfg' ${CMD}"
+		if [[ -f "${ANSIBLE_CONFIG_PATH}" ]]; then
+			cmd="ANSIBLE_CONFIG='${ANSIBLE_CONFIG_PATH}' ${cmd}"
 		else
-			echo "Ansible config not found at ${ansible_config_path}"
+			echo "Ansible config not found at ${ANSIBLE_CONFIG_PATH}"
 		fi
 
-		# PRINT
 		echo
-		echo -e "${CYAN}Running ansible on host "${ANSIBLE_HOST}" with tags${CLEAR}: ${BOLD}${ANSIBLE_TAGS}${CLEAR} ..."
-		echo -en "${GREY}"
-		echo "${CMD}"
+		echo "-------------------------------"
+		echo -e "Host:      ${GREEN}${ANSIBLE_HOST}${CLEAR}"
+		echo -e "Playbook:  ${GREEN}${ANSIBLE_PLAYBOOK_PATH}${CLEAR}"
+		echo -e "Inventory: ${GREEN}${ANSIBLE_INVENTORY_PATH}${CLEAR}"
+		echo -e "Vaults:    ${GREEN}${VAULT_FLAGS[@]}${CLEAR}"
+		echo -e "Tags:      ${GREEN}${ANSIBLE_TAGS}${CLEAR}"
+		echo "-------------------------------"
 		echo
-		echo -en "${CLEAR}"
-		
-		# RUN cmd
-		eval "${CMD}"
-		
-		if [[ ${?} -ne 0 ]]; then
-			echo -e "${MAGENTA}Script returned error code: ${exit_code}${RESET}"
-			echo
-		fi
 
-		# WHAT'S next?
-		local options=(
-			"Start from beginning"
-			"Run cmd again"
-			"Run cmd again in verbose mode"
-			"Run cmd again in very verbose mode"
-		)
-		echo
-		echo "---"
-		echo -e "${CYAN}What's next?${RESET}"
-		echo -e "Last cmd:\n${GREY}${CMD}${CLEAR}"
-		echo
+		echo -e "${CYAN}Main Menu:${CLEAR}"
+		PS3=">> "
 		select opt in "${options[@]}"; do
-			if [[ ${REPLY} == "help" || ${REPLY} == "?" ]]; then
-				local index=1
-				for opt in "${options[@]}"; do
-					echo -e "${index})  ${opt}"
-					((index++))
-				done
-				continue
-			fi
-			case ${opt} in
-				"Start from beginning")
-					ANSIBLE_HOST=""
-					ANSIBLE_TAGS=""
+			case "${opt}" in
+			
+				"Host")
+					echo
+					set_host
+					set_playbook_path
+					# reset vaults
+					VAULT_FLAGS=()
+					for id in ${VAULT_DEFAULT_IDS}; do
+						add_vault_flag "${id}"
+					done
+					add_vault_flag "${ANSIBLE_HOST}"
 					break
 					;;
-				"Run cmd again")
-					eval "${CMD}"
-					continue
+
+				"Tags")
+					echo
+					echo -e "${CYAN}Edit Tags:${CLEAR}"
+					select opt in "Set" "Refresh List" "Return"; do
+						case "${opt}" in
+							"Set")
+								set_tags
+								break
+								;;
+							"Refresh List")
+								save_tag_list
+								break
+								;;
+							"Return")
+								break
+								;;
+						esac
+					done
+					break
 					;;
-				"Run cmd again in verbose mode")
-					eval "${CMD} -v"
-					continue
+				"Vaults")
+					echo
+					echo -e "${CYAN}Edit Vaults:${CLEAR}"
+					select opt in "Add host vault" "Add group vault" "Reset vaults" "Return"; do
+						case "${opt}" in
+							"Add host vault")
+								add_vault host
+								break
+								;;
+
+							"Add group vault")
+								add_vault group
+								break
+								;;
+							
+							"Reset vaults")
+								VAULT_FLAGS=()
+								break
+								;;
+								
+							"Return")
+								break
+								;;
+						esac
+					done
+					break
 					;;
-				"Run cmd again in very verbose mode")
-					eval "${CMD} -vv"
-					continue
+
+				"Run Ansible")
+					# PRINT
+					echo
+					echo -e "${CYAN}Running ansible on host "${ANSIBLE_HOST}" with tags${CLEAR}: ${BOLD}${ANSIBLE_TAGS}${CLEAR} ..."
+					echo -en "${GREY}"
+					echo "${cmd}"
+					echo
+					echo -en "${CLEAR}"
+					
+					# RUN cmd
+					eval "${cmd}"
+					
+					if [[ ${?} -ne 0 ]]; then
+						echo -e "${MAGENTA}Script returned error code: ${exit_code}${RESET}"
+						echo
+					fi
+					
+					break
 					;;
+				
+				"Run Ansible (verbose)")
+					eval "${cmd} -v"
+					break
+					;;
+				
+				"Run Ansible (very verbose)")
+					eval "${cmd} -vv"
+					break
+					;;
+				
+				"Exit")
+					exit 0
+					;;
+				
 				*)
-					echo "Wrong option: ${REPLY}"
+					echo "Bad option: ${REPLY}"
+					break
+					;;
+
 			esac
 		done
 	done
 }
 
-main "${1:-""}" "${2:-""}"
+main

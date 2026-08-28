@@ -1,15 +1,19 @@
-function set_playbook {
-	# requires: 
-	# - ANSIBLE_REPO_PATH
-	# - ANSIBLE_HOST
-	# sets:
-	# - ANSIBLE_PLAYBOOK_PATH
+# REQUIRES
+# --------
+# - ANSIBLE_REPO_PATH
+# - ANSIBLE_HOST
+
+# SETS
+# ----
+# - ANSIBLE_PLAYBOOK_PATH
+
+function set_playbook_path {
 
 	local playbook_paths
 	mapfile -t playbook_paths < <(find ${ANSIBLE_REPO_PATH}/playbooks -maxdepth 1 -mindepth 1 -type f -name "*${ANSIBLE_HOST}*")
 
-	echo
-	echo "Trying to find playbook for ${ANSIBLE_HOST} ..."
+	# echo
+	# echo "Trying to find playbook for ${ANSIBLE_HOST} ..."
 
 	if [[ ${#playbook_paths[@]} -eq 0 ]]; then
 		echo "ERROR: No playbook not found for ${ANSIBLE_HOST}"

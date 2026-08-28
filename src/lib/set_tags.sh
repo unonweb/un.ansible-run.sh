@@ -1,71 +1,51 @@
+# REQUIRES
+# --------
+# - ANSIBLE_INVENTORY_PATH
+# - ANSIBLE_PLAYBOOK_PATH
+# - ANSIBLE_PLAYBOOK_EXEC_PATH
+# - PATH_DATA
+
+# SETS
+# ----
+# - ANSIBLE_TAGS
+
 function set_tags {
-	# requires: 
-	# - ANSIBLE_INVENTORY_PATH
-	# - ANSIBLE_PLAYBOOK_PATH
-	# - ANSIBLE_PLAYBOOK_EXEC_PATH
-	# - PATH_DATA
-	# sets:
-	# - ANSIBLE_TAGS
 
 	local tags_query
-	local available_tags=()
+	local TAGS_AVAILABLE=()
 	local out_name=$(basename ${ANSIBLE_PLAYBOOK_PATH})
 	out_name="${out_name//.yml}" # remove .yml
 	local out_path="${PATH_DATA}/tags.${out_name}"
 	local run_tag_extraction=true
 
+	local old_trap=$(trap -p SIGINT)
+
+    # Trap SIGINT (CTRL+C)
+    trap 'return 0' SIGINT
+
 	# Check if the output file already exists
     if [[ -f "${out_path}" ]]; then
 		echo
 		echo "Tag list found: ${out_path}"
-		echo -e "${CYAN}Use this tag list?${CLEAR} (Enter)"
-		echo -e "${CYAN}Refresh tag list?${CLEAR} (r)"
-        read -p ">> " choice
-        case "${choice}" in
-            r)
-				run_tag_extraction=true;;
-            *) 
-				run_tag_extraction=false;;
-        esac
+	else
+		save_tag_list
     fi
 
-	# run_tag_extraction
-	if [[ "${run_tag_extraction}" == true ]]; then
-		# get available tags
-		echo
-		echo -e "${BLINKINK}Searching for tags associated with playbook ...${CLEAR}"
-		# Extracting TASK TAGS line
-		local output_list_tags=$(${ANSIBLE_PLAYBOOK_EXEC_PATH} --list-tags --inventory "${ANSIBLE_INVENTORY_PATH}" "${ANSIBLE_PLAYBOOK_PATH}")
-		# Removing the prefix and brackets
-		task_tags_line="${output_list_tags#*TASK TAGS: }" # Remove from the beginning until TASK TAGS: 
-		task_tags_line="${task_tags_line//[\[\]]/}" # Remove brackets
-		# Converting the string into an array using IFS
-		IFS=', ' read -r -a available_tags <<< "${task_tags_line}"
-
-		if [[ ${#available_tags[@]} -eq 0 ]]; then
-			echo "ERROR: Could not find any tags with playbook: ${ANSIBLE_PLAYBOOK_PATH} and inventory: ${ANSIBLE_INVENTORY_PATH}"
-			exit 1
-		else
-			printf "%s\n" "${available_tags[@]}" > ${out_path}
-			echo "Tag list saved to: ${out_path}"
-		fi
-	else
-		readarray -t available_tags < "${out_path}"
-        echo "Loaded ${#available_tags[@]} unique tags from file"
-	fi
+	readarray -t TAGS_AVAILABLE < "${out_path}"
+	echo "Loaded ${#TAGS_AVAILABLE[@]} unique tags from file"
 
 	# ask user
 	echo
 	echo -e "${CYAN}Enter tags${CLEAR}"
 	echo -e "${GREY}Separator: comma${CLEAR}"
 	echo -e "${GREY}Partial match is supported${CLEAR}"
-	echo -e "${GREY}Leave empty to list available hosts${CLEAR}"
+	echo -e "${GREY}Leave empty to list available tags${CLEAR}"
 	read -p ">> " tags_query
 
 	# user inputs nothing
 	if [[ -z "${tags_query}" ]]; then
 		# show full list
-		select tag in "${available_tags[@]}"; do
+		select tag in "${TAGS_AVAILABLE[@]}"; do
 			if [ -n "${tag}" ]; then
 				ANSIBLE_TAGS="${tag}"
 				echo "-> ${tag}"
@@ -92,19 +72,26 @@ function set_tags {
 		# Iterate through each tag in the query
 		# find matches
 		for query_tag in "${tags_query_array[@]}"; do
+			
 			local this_query_matches=()
-			for tag in "${available_tags[@]}"; do
+			for tag in "${TAGS_AVAILABLE[@]}"; do
 				tag=${tag,,} # lowercase
 				if [[ ${tag} == *"${query_tag}"* ]]; then
 					this_query_matches+=("${tag}")
 				fi
 			done
-			if [[ ${#this_query_matches[@]} -eq 1 ]]; then
+
+			# one match
+			if [[ ${#this_query_matches[@]} -eq 0 ]]; then
+				echo
+				echo -e "${MAGENTA}'${query_tag}' not found among the following available tags:${CLEAR}\n${TAGS_AVAILABLE[@]}"
+				continue
+			elif [[ ${#this_query_matches[@]} -eq 1 ]]; then
 				matches+=("${this_query_matches[0]}")
 				echo "-> ${this_query_matches[0]}"
 			else
 				echo
-				echo -e "${CYAN}Multiple matches found for ${query_tag}. Select:${CLEAR}"
+				echo -e "${CYAN}Multiple matches found for '${query_tag}'. Select:${CLEAR}"
 				select choice in "${this_query_matches[@]}"; do
 					if [[ -z ${choice} ]]; then
 						echo -e "${MAGENTA}Invalid choice – try again.${CLEAR}"
@@ -140,7 +127,15 @@ function set_tags {
 		fi
 	fi
 
+	# restore trap
+	if [[ -n "${old_trap}" ]]; then
+		eval "${old_trap}"
+	else
+		trap - SIGINT
+	fi
+
 	if [[ -n ${ANSIBLE_TAGS} ]]; then
+		echo "${ANSIBLE_TAGS}" > "${PATH_DATA_LAST_TAGS}"
 		return 0
 	else
 		echo "ERROR: ANSIBLE_TAGS not set!"
