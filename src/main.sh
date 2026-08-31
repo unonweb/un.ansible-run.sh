@@ -152,7 +152,7 @@ function main {
 		# SET cmd
 		local cmd="${ANSIBLE_PLAYBOOK_EXEC_PATH}"
 		cmd+=" --inventory=${ANSIBLE_INVENTORY_PATH}"
-		cmd+=" --tags "${ANSIBLE_TAGS}""
+		cmd+=" --tags "${ANSIBLE_TAGS}" "
 		cmd+="${VAULT_FLAGS[@]}"
 		cmd+=" ${ANSIBLE_PLAYBOOK_PATH}"
 		# SET env
@@ -213,6 +213,7 @@ function main {
 				"Vaults")
 					echo
 					echo -e "${CYAN}Edit Vaults:${CLEAR}"
+					if [[ -n "${VAULT_FLAGS}" ]]; then echo -e "${GREY}${VAULT_FLAGS[@]}${CLEAR}"; fi
 					select opt in "Add host vault" "Add group vault" "Reset vaults" "Return"; do
 						case "${opt}" in
 							"Add host vault")
