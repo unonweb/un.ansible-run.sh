@@ -1,6 +1,11 @@
 #!/bin/bash
 
+# REQUIRES
+# --------
+# - ANSIBLE_REPO_PATH
+
 # BOILERPLATE
+# -----------
 export SCRIPT_PATH="$(readlink -f "${BASH_SOURCE}")"
 export SCRIPT_DIR=$(dirname -- "$(readlink -f "${BASH_SOURCE}")")
 export SCRIPT_NAME=$(basename -- "$(readlink -f "${BASH_SOURCE}")")
@@ -19,6 +24,7 @@ export UNDERLINE="${ESC}[4m"
 export BLINKING="\033[5m"
 
 # CONFIG & DEFAULTS
+# -----------------
 export PATH_CONFIG="${SCRIPT_PARENT}/config.cfg"
 export PATH_DEFAULTS="${SCRIPT_DIR}/defaults.cfg"
 export PATH_DATA="${SCRIPT_PARENT}/data"
@@ -36,6 +42,7 @@ else
 fi
 
 # IMPORTS
+# -------
 source ${SCRIPT_DIR}/lib/save_tag_list.sh
 source ${SCRIPT_DIR}/lib/set_tags.sh
 source ${SCRIPT_DIR}/lib/set_host.sh
