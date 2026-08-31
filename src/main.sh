@@ -4,6 +4,11 @@
 # --------
 # - ANSIBLE_REPO_PATH
 
+# RECOMMENDS
+# ----------
+# - VAULT_MAP
+# - VAULT_DEFAULT_IDS
+
 # BOILERPLATE
 # -----------
 export SCRIPT_PATH="$(readlink -f "${BASH_SOURCE}")"
